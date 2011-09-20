@@ -123,5 +123,30 @@ bit_reverse_loop:
 
 ## unsigned count_nodes(node_t *node);
 count_nodes:
-			  li	$v0, 0
+			  sub	$sp, $sp, 16	# allocate some local space
+			  sw	$s1, 8($sp)
+			  sw	$s0, 4($sp)
+			  sw	$ra, 0($sp)
+			  move	$s0, $a0		# save the argument
+			  lw	$a0, 0($s0)		# node->p[0]
+			  and	$t0, $a0, 0x80000000 # MSB_SET?
+			  li	$v0, 0			# set return for branch
+			  bnez	$t0, count_nodes_return
+			  or	$t0, $a0, 0x80000000 # MSB_SET
+			  sw	$t0, 0($s0)		# mark the node
+			  li	$s1, 1			# initialize return value to 1
+			  jal	bit_reverse		# get the valid node pointer
+			  move	$a0, $v0
+			  jal	count_nodes		# count_nodes(node->p[0])
+			  add	$s1, $s1, $v0
+			  lw	$a0, 4($s0)		# node->p[1]
+			  jal	bit_reverse
+			  move	$a0, $v0
+			  jal	count_nodes		# count_nodes(node->p[1])
+			  add	$v0, $s1, $v0
+count_nodes_return:
+			  lw	$s1, 8($sp)
+			  lw	$s0, 4($sp)
+			  lw	$ra, 0($sp)
+			  add	$sp, $sp, 16
 			  jr	$ra
