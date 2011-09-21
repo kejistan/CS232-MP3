@@ -91,6 +91,19 @@ find_closest_block_return:
 			  lw	$s0, 4($sp)
 			  lw	$ra, 0($sp)
 			  jr	$ra
+#
+# XXX Fix to not require pushing to far edge
+#
+is_in_goal:
+			  lw	$t0, goal_side
+			  li	$v0, 0			# initialize to false
+			  beqz	$t0, is_in_goal_left # goal_side == LEFT
+			  sub	$a0, $a0, 300
+is_in_goal_left:
+			  bnez	$a0, is_in_goal_false # x_coord == 300
+			  li	$v0, 1			# set to true
+is_in_goal_false:
+			  jr	$ra
 
 move_block_to_goal:
 			  sub	$sp, $sp, 24
