@@ -51,7 +51,7 @@ find_closest_block:
 			  li	$s0, 0			# uint i = 0
 			  li	$s1, 700		# uint target_x = 700
 			  li	$s2, 700		# uint target_y = 700
-			  li	$s7, 980000		# manhattan_distance(0, 0, 700, 700)
+			  li	$s7, 980000		# distance(0, 0, 700, 700)
 			  jal	find_bot_coordinates
 			  move	$s3, $v0		# bot_x
 			  move	$s4, $v1		# bot_y
@@ -69,9 +69,9 @@ find_closest_block_loop:
 			  move	$a1, $s6		# box_y
 			  move	$a2, $s3		# bot_x
 			  move	$a3, $s4		# bot_y
-			  jal	manhattan_distance
+			  jal	distance
 			  sub	$t0, $v0, $s7
-			  bgez	$t0, find_closest_block_loop_end # min_dist <= manhattan_distance(bot_x, bot_y, box_x, box_y)
+			  bgez	$t0, find_closest_block_loop_end # min_dist <= distance(bot_x, bot_y, box_x, box_y)
 			  move	$s7, $v0		# save the new min_dist
 			  move	$s1, $s5		# save the new target_x
 			  move	$s2, $s6		# save the new target_y
@@ -108,12 +108,10 @@ move_block_to_goal:
 			  move	$a1, $s1
 			  move	$a2, $s2
 			  move	$a3, $s3
-			  jal	manhattan_distance
+			  jal	distance
 			  sub	$t0, $v0, 1
-			  beqz	$t0, move_block_to_goal_close # manhattan_distance(bot_x, bot_y, box_x, box_y) == 1
-			  #
+			  beqz	$t0, move_block_to_goal_close # distance(bot_x, bot_y, box_x, box_y) == 1
 			  # calculate the angle and set
-			  #
 			  move	$a0, $s2
 			  move	$a1, $s3
 			  move	$a2, $s0
@@ -124,6 +122,9 @@ move_block_to_goal:
 			  sw	$t0, 0xffff0018($0)
 			  j		move_block_to_goal_return
 move_block_to_goal_close:
+			  # debug
+			  sw $s0, 0xffff0080($0)
+			  sw $s1, 0xffff0080($0)
 			  #
 			  # check where we are relative to block and goal, move to fix position
 			  #
@@ -138,7 +139,18 @@ move_block_to_goal_return:
 			  add	$sp, $sp, 24
 			  jr	$ra
 
-manhattan_distance:
+find_bot_coordinates:
+			  lw	$v0, 0xffff0020($0)
+			  lw	$v1, 0xffff0024($0)
+			  jr	$ra
+
+find_box_coordinates:
+			  sw	$a0, 0xffff0070($0)
+			  lw	$v0, 0xffff0070($0)
+			  lw	$v1, 0xffff0074($0)
+			  jr	$ra
+
+distance:
 			  sub	$t0, $a0, $a2	# x_diff
 			  sub	$t1, $a1, $a3	# y_diff
 			  mul	$t0, $t0, $t0	# x_diff ^ 2
@@ -153,6 +165,7 @@ approximate_angle:
 			  sub	$a0, $a0, $a2
 			  sub	$a1, $a1, $a3
 			  jal	atan2
+			  sw	$v0, 0xffff0080($0) # debug
 approximate_angle_return:
 			  lw	$ra, 0($sp)
 			  add	$sp, $sp, 8
