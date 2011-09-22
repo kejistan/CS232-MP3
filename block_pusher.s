@@ -90,12 +90,16 @@ is_in_goal_false:
 
 # void move_block_to_goal(box_x, box_y)
 move_block_to_goal:
-			  sub	$sp, $sp, 8
+			  sub	$sp, $sp, 16
+			  sw	$a1, 8($sp)
+			  sw	$a0, 4($sp)
 			  sw	$ra, 0($sp)
 			  jal	find_bot_coordinates
-			  sub	$t0, $a0, $v0	# x_diff
-			  sub	$t1, $a1, $v1	# y_diff
-			  bltz	$t0, move_block_to_goal_right ##########
+			  lw	$a1, 8($sp)
+			  lw	$a0, 4($sp)
+			  sub	$t0, $v0, $a0	# x_diff
+			  sub	$t1, $v1, $a1	# y_diff
+			  bltz	$t0, move_block_to_goal_right
 			  beqz	$t1, move_block_to_goal_left
 			  bltz	$t1, move_block_to_goal_down
 			  bgtz	$t1, move_block_to_goal_up
@@ -107,7 +111,7 @@ move_block_to_goal_right:
 			  bgtz	$t2, move_block_to_goal_right_clear
 # we are too close to the block in y, avoid the block
 			  sub	$t2, $a1, 275
-			  bgtz	$t2, move_block_to_goal_down_move
+			  bgtz	$t2, move_block_to_goal_down_move # the block is near the top
 			  j		move_block_to_goal_up_move
 move_block_to_goal_right_clear:
 			  li	$t4, 0
@@ -116,19 +120,25 @@ move_block_to_goal_down:
 			  sub	$t0, $t0, 15
 			  bltz	$t0, move_block_to_goal_right # x_diff < 15 && y_diff < 0
 move_block_to_goal_down_move:
-			  li	$t4, 270
+			  li	$t4, 90
 			  j		move_block_to_goal_return
 move_block_to_goal_up:
 			  sub	$t0, $t0, 15
 			  bltz	$t0, move_block_to_goal_right # x_diff < 15 && y_diff > 0
 move_block_to_goal_up_move:
-			  li	$t4, 90
+			  li	$t4, 270
 			  j		move_block_to_goal_return
 move_block_to_goal_left:
 			  li	$t4, 180
 			  j		move_block_to_goal_return
 move_block_to_goal_return:
+			  sw	$t4, 0xffff0014($0) # set angle
+			  li	$t4, 1
+			  sw	$t4, 0xffff0018($0) # set angle as absolute
+			  li	$t4, 10
+			  sw	$t4, 0xffff0010($0) # set the velocity
 			  lw	$ra, 0($sp)
+			  add	$sp, $sp, 16
 			  jr	$ra
 
 find_bot_coordinates:
