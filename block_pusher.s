@@ -1,17 +1,12 @@
 ## you get to write this one from scratch.
 ## we'll only be testing its behavior, not poking your code directly
 .data
-goal_side:	  .word	1				# 0 for left, 1 for right
-pi:			  .float 3.14159265358979
-pi_4:		  .float 0.78539816339745
-const_1:	  .float 0.0663
-const_2:	  .float 0.2447
+atan:		  .word	0, 5, 11, 16, 22, 28, 33, 39, 45, 50, 56, 61, 67, 73, 78, 84, 90, 95, 101, 106, 112, 118, 123, 129, 135, 140, 146, 151, 157, 163, 168, 174, 180, 185, 191, 196, 202, 208, 213, 219, 225, 230, 236, 241, 247, 253, 258, 264, 270, 275, 281, 286, 292, 298, 303, 309, 315, 320, 326, 331, 337, 343, 348, 354
 
 .text
 main:
 			  sub	$sp, $sp, 8
 			  sw	$ra, 0($sp)
-			  jal	find_goal_side
 live:
 			  jal	find_closest_block
 			  sub	$t0, $v0, 300
@@ -29,14 +24,6 @@ main_return:
 			  add	$sp, $sp, 8
 			  jr	$ra
 
-find_goal_side:
-			  lw	$t0, 0xffff0020($0)	# x coordinate
-			  sub	$t1, $t0, 150	# board is 301 coordinates wide
-			  bgez	$t1, find_goal_side_return # x >= 150
-			  sw	$0, goal_side($0) # goal_side defaults to right
-find_goal_side_return:
-			  jr	$ra
-
 find_closest_block:
 			  sub	$sp, $sp, 40
 			  sw	$s7, 32($sp)
@@ -49,7 +36,7 @@ find_closest_block:
 			  sw	$s0, 4($sp)
 			  sw	$ra, 0($sp)
 			  li	$s0, 0			# uint i = 0
-			  li	$s1, 700		# uint target_x = 700
+			  li	$s1, 700		# uint target_x = 700 chosen to always be further away than any block
 			  li	$s2, 700		# uint target_y = 700
 			  li	$s7, 980000		# distance(0, 0, 700, 700)
 			  jal	find_bot_coordinates
@@ -91,16 +78,13 @@ find_closest_block_return:
 			  lw	$s0, 4($sp)
 			  lw	$ra, 0($sp)
 			  jr	$ra
+
 #
 # XXX Fix to not require pushing to far edge
 #
 is_in_goal:
-			  lw	$t0, goal_side
 			  li	$v0, 0			# initialize to false
-			  beqz	$t0, is_in_goal_left # goal_side == LEFT
-			  sub	$a0, $a0, 300
-is_in_goal_left:
-			  bnez	$a0, is_in_goal_false # x_coord == 300
+			  bnez	$a0, is_in_goal_false # x_coord != 0
 			  li	$v0, 1			# set to true
 is_in_goal_false:
 			  jr	$ra
@@ -129,8 +113,9 @@ move_block_to_goal:
 			  move	$a1, $s3
 			  move	$a2, $s0
 			  move	$a3, $s1
-			  jal	approximate_angle
-			  sw	$v0, 0xffff0014($0)
+			  jal	approximate_angle # approximate_angle(bot, box)
+			  sw	$v0, 0xffff0080($0) # debug
+			  sw	$v0, 0xffff0014($0)	# write the angle
 			  li	$t0, 1
 			  sw	$t0, 0xffff0018($0)
 			  j		move_block_to_goal_return
@@ -175,61 +160,31 @@ distance:
 approximate_angle:
 			  sub	$sp, $sp, 8
 			  sw	$ra, 0($sp)
-			  sub	$a0, $a0, $a2
-			  sub	$a1, $a1, $a3
+			  sub	$a0, $a1, $a3
+			  sub	$a1, $a0, $a2
 			  jal	atan2
 			  sw	$v0, 0xffff0080($0) # debug
-approximate_angle_return:
 			  lw	$ra, 0($sp)
 			  add	$sp, $sp, 8
 			  jr	$ra
 
 # Calculate the angle from the x axis
-# Expected to be used as: atan2(box_x - bot_x, box_y - bot_y)
+# Expected to be used as: atan2(box_y - bot_y, box_x - bot_x)
 atan2:
-			  move	$v0, $a0
-			  beqz	$a0, atan2_simple_cases
 			  li	$v0, 0
-			  bgtz	$a0, atan2_atan
-			  bgez	$a1, atan2_non_negative
-			  li	$v0, -360		# -360 to come out correctly after adding 180
-atan2_non_negative:
-			  add	$v0, 180
-atan2_atan:
-			  # approximate the arctan($a1 / $a0)
-			  li	$t0, 1
-			  mtc1	$t0, $f4
-			  cvt.d.w $f4, $f4
-			  mtc1	$a0, $f8		# relative_x
-			  mtc1	$a1, $f12		# relative_y
-			  div.d	$f0, $f12, $f8 # x = relative_x / relative_y
-			  abs.d	$f8, $f0		# fp8 = |x|
-			  sub.d $f4, $f8, $f4 # |x| - 1
-			  mul.d $f4, $f4, $f0 # x(|x| - 1)
-			  ldc1 $f12, const_1
-			  mul.d	$f8, $f8, $f12 # 0.0663|x|
-			  ldc1 $f12, const_2
-			  add.d	$f8, $f8, $f12 # 0.2447 + 0.0663|x|
-			  mul.d	$f4, $f4, $f8 # x(|x| - 1)(0.2447 + 0.0663|x|)
-			  ldc1	$f12, pi_4
-			  mul.d $f0, $f0, $f12 # pi / 4 * x
-			  sub.d	$f0, $f0, $f4 # pi / 4 * x - x(|x| - 1)(0.2447 + 0.0663|x|)
-			  # fp0 now holds the arctan in radians
-			  li	$t0, 180
-			  mtc1	$t0, $f4
-			  cvt.d.w $f4, $f4
-			  mul.d $f0, $f0, $f4
-			  ldc1	$f4, pi
-			  div.d	$f0, $f0, $f4
-			  round.w.d	$f0, $f0	# arctan in radians, rounded to integer
-			  mfc1	$t0, $f0
-			  add	$v0, $v0, $t0
+			  beqz	$a1, atan2_simple_cases
+			  mul	$t0, $a1, 1428
+			  mul	$t1, $a0, 300
+			  div	$t2, $t1, $t0	# 300y / 1428x = index [0,63]
+			  # when quantizing into 64 different sections (approx 5 degrees each)
+			  # should produce accuracy to any square within radius 10.
+			  lw	$v0, atan($t2)
 			  j		atan2_return
 atan2_simple_cases:
-			  blez $a1, atan2_simple_2
+			  blez $a0, atan2_simple_2
 			  li $v0, 90
 atan2_simple_2:
-			  beqz $a1, atan2_return # undefined case
+			  beqz $a0, atan2_return # undefined case
 			  li $v0, -90
 atan2_return:
 			  jr $ra
