@@ -102,32 +102,24 @@ move_block_to_goal:
 			  jal	find_bot_coordinates
 			  move	$s2, $v0		# bot_x
 			  move	$s3, $v1		# bot_y
-			  move	$a0, $s0
-			  move	$a1, $s1
-			  move	$a2, $s2
-			  move	$a3, $s3
-			  jal	distance
-			  sub	$t0, $v0, 1
-			  beqz	$t0, move_block_to_goal_close # distance(bot_x, bot_y, box_x, box_y) == 1
-			  # calculate the angle and set
-			  move	$a0, $s2
-			  move	$a1, $s3
-			  move	$a2, $s0
-			  move	$a3, $s1
-			  jal	approximate_angle # approximate_angle(bot, box)
-#			  sw	$v0, 0xffff0080($0) # debug
-			  sw	$v0, 0xffff0014($0)	# write the angle
-			  li	$t0, 1
-			  sw	$t0, 0xffff0018($0)
+			  sub	$t0, $s0, $s2	# x_distance from box
+			  sub	$t1, $s1, $s3	# y_distance from box
+			  blez	$t0, move_block_to_goal_move_to_right
+			  bgtz	$t1, move_block_to_goal_down
+			  gltz	$t1, move_block_to_goal_up
+			  li	$t2, 180
 			  j		move_block_to_goal_return
-move_block_to_goal_close:
-			  # debug
-#			  sw $s0, 0xffff0080($0)
-#			  sw $s1, 0xffff0080($0)
-			  #
-			  # check where we are relative to block and goal, move to fix position
-			  #
+move_block_to_goal_move_to_right:
+			  li	$t2, 0
+			  j		move_block_to_goal_return
+move_block_to_goal_down:
+			  li	$t2, 270
+			  j		move_block_to_goal_return
+move_block_to_goal_up:
+			  li	$t2, 90
+			  j		move_block_to_goal_return
 move_block_to_goal_return:
+			  sw	$t2, 0xffff0014($0) # set the angle
 			  li	$t0, 10
 			  sw	$t0, 0xffff0010($0)	# set velocity 10 (to ensure we can start moving)
 			  lw	$s3, 16($sp)
@@ -156,44 +148,3 @@ distance:
 			  mul	$t1, $t1, $t1	# y_diff ^ 2
 			  add	$v0, $t0, $t1
 			  jr	$ra
-
-# Approximate the absolute angle (a0, a1) must travel to reach (a2, a3)
-approximate_angle:
-			  sub	$sp, $sp, 8
-			  sw	$ra, 0($sp)
-			  move	$t0, $a0		# save a0 from clobbering
-			  sub	$a0, $a3, $a1
-			  sub	$a1, $a2, $t0
-			  jal	atan2
-			  sw	$v0, 0xffff0080($0) # debug
-			  lw	$ra, 0($sp)
-			  add	$sp, $sp, 8
-			  jr	$ra
-
-# Calculate the angle from the x axis
-# Expected to be used as: atan2(box_y - bot_y, box_x - bot_x)
-atan2:
-			  li	$v0, 0
-			  beqz	$a1, atan2_simple_cases
-			  mul	$t0, $a1, 1428
-			  mul	$t1, $a0, 300
-			  div	$t2, $t1, $t0	# 300y / 1428x = index [0,63]
-			  # when quantizing into 64 different sections (approx 5 degrees each)
-			  # should produce accuracy to any square within radius 10.
-			  beqz	$t2, atan2_zero_case
-			  sll	$t2, $t2, 2		# multiply by four for alignment
-			  lw	$v0, atan($t2)
-			  j		atan2_return
-atan2_zero_case:
-			  bgez	$a1, atan2_return # x_coord > 0
-			  li	$v0, 180
-			  j		atan2_return
-atan2_simple_cases:
-			  blez $a0, atan2_simple_2
-			  li $v0, 90
-			  j		atan2_return
-atan2_simple_2:
-			  beqz $a0, atan2_return # undefined case
-			  li $v0, -90
-atan2_return:
-			  jr $ra
