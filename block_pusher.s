@@ -1,7 +1,5 @@
 ## you get to write this one from scratch.
 ## we'll only be testing its behavior, not poking your code directly
-.data
-atan:		  .word	0, 5, 11, 16, 22, 28, 33, 39, 45, 50, 56, 61, 67, 73, 78, 84, 90, 95, 101, 106, 112, 118, 123, 129, 135, 140, 146, 151, 157, 163, 168, 174, 180, 185, 191, 196, 202, 208, 213, 219, 225, 230, 236, 241, 247, 253, 258, 264, 270, 275, 281, 286, 292, 298, 303, 309, 315, 320, 326, 331, 337, 343, 348, 354
 
 .text
 main:
@@ -90,44 +88,47 @@ is_in_goal:
 is_in_goal_false:
 			  jr	$ra
 
+# void move_block_to_goal(box_x, box_y)
 move_block_to_goal:
-			  sub	$sp, $sp, 24
-			  sw	$s3, 16($sp)
-			  sw	$s2, 12($sp)
-			  sw	$s1, 8($sp)
-			  sw	$s0, 4($sp)
+			  sub	$sp, $sp, 8
 			  sw	$ra, 0($sp)
-			  move	$s0, $a0		# box_x
-			  move	$s1, $a1		# box_y
 			  jal	find_bot_coordinates
-			  move	$s2, $v0		# bot_x
-			  move	$s3, $v1		# bot_y
-			  sub	$t0, $s0, $s2	# x_distance from box
-			  sub	$t1, $s1, $s3	# y_distance from box
-			  blez	$t0, move_block_to_goal_move_to_right
-			  bgtz	$t1, move_block_to_goal_down
-			  gltz	$t1, move_block_to_goal_up
-			  li	$t2, 180
-			  j		move_block_to_goal_return
-move_block_to_goal_move_to_right:
-			  li	$t2, 0
+			  sub	$t0, $a0, $v0	# x_diff
+			  sub	$t1, $a1, $v1	# y_diff
+			  bltz	$t0, move_block_to_goal_right ##########
+			  beqz	$t1, move_block_to_goal_left
+			  bltz	$t1, move_block_to_goal_down
+			  bgtz	$t1, move_block_to_goal_up
+			  j		move_block_to_goal_left
+move_block_to_goal_right:
+			  add	$t2, $t1, 15
+			  bltz	$t2, move_block_to_goal_right_clear
+			  sub	$t2, $t1, 15
+			  bgtz	$t2, move_block_to_goal_right_clear
+# we are too close to the block in y, avoid the block
+			  sub	$t2, $a1, 275
+			  bgtz	$t2, move_block_to_goal_down_move
+			  j		move_block_to_goal_up_move
+move_block_to_goal_right_clear:
+			  li	$t4, 0
 			  j		move_block_to_goal_return
 move_block_to_goal_down:
-			  li	$t2, 270
+			  sub	$t0, $t0, 15
+			  bltz	$t0, move_block_to_goal_right # x_diff < 15 && y_diff < 0
+move_block_to_goal_down_move:
+			  li	$t4, 270
 			  j		move_block_to_goal_return
 move_block_to_goal_up:
-			  li	$t2, 90
+			  sub	$t0, $t0, 15
+			  bltz	$t0, move_block_to_goal_right # x_diff < 15 && y_diff > 0
+move_block_to_goal_up_move:
+			  li	$t4, 90
+			  j		move_block_to_goal_return
+move_block_to_goal_left:
+			  li	$t4, 180
 			  j		move_block_to_goal_return
 move_block_to_goal_return:
-			  sw	$t2, 0xffff0014($0) # set the angle
-			  li	$t0, 10
-			  sw	$t0, 0xffff0010($0)	# set velocity 10 (to ensure we can start moving)
-			  lw	$s3, 16($sp)
-			  lw	$s2, 12($sp)
-			  lw	$s1, 8($sp)
-			  lw	$s0, 4($sp)
 			  lw	$ra, 0($sp)
-			  add	$sp, $sp, 24
 			  jr	$ra
 
 find_bot_coordinates:
