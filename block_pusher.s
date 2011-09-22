@@ -84,7 +84,8 @@ find_closest_block_return:
 #
 is_in_goal:
 			  li	$v0, 0			# initialize to false
-			  bnez	$a0, is_in_goal_false # x_coord != 0
+			  sub	$a0, $a0, 10
+			  bgtz	$a0, is_in_goal_false # x_coord > 10
 			  li	$v0, 1			# set to true
 is_in_goal_false:
 			  jr	$ra
@@ -114,15 +115,15 @@ move_block_to_goal:
 			  move	$a2, $s0
 			  move	$a3, $s1
 			  jal	approximate_angle # approximate_angle(bot, box)
-			  sw	$v0, 0xffff0080($0) # debug
+#			  sw	$v0, 0xffff0080($0) # debug
 			  sw	$v0, 0xffff0014($0)	# write the angle
 			  li	$t0, 1
 			  sw	$t0, 0xffff0018($0)
 			  j		move_block_to_goal_return
 move_block_to_goal_close:
 			  # debug
-			  sw $s0, 0xffff0080($0)
-			  sw $s1, 0xffff0080($0)
+#			  sw $s0, 0xffff0080($0)
+#			  sw $s1, 0xffff0080($0)
 			  #
 			  # check where we are relative to block and goal, move to fix position
 			  #
@@ -179,12 +180,18 @@ atan2:
 			  div	$t2, $t1, $t0	# 300y / 1428x = index [0,63]
 			  # when quantizing into 64 different sections (approx 5 degrees each)
 			  # should produce accuracy to any square within radius 10.
+			  beqz	$t2, atan2_zero_case
 			  sll	$t2, $t2, 2		# multiply by four for alignment
 			  lw	$v0, atan($t2)
+			  j		atan2_return
+atan2_zero_case:
+			  bgez	$a1, atan2_return # x_coord > 0
+			  li	$v0, 180
 			  j		atan2_return
 atan2_simple_cases:
 			  blez $a0, atan2_simple_2
 			  li $v0, 90
+			  j		atan2_return
 atan2_simple_2:
 			  beqz $a0, atan2_return # undefined case
 			  li $v0, -90
