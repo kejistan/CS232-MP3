@@ -160,8 +160,9 @@ distance:
 approximate_angle:
 			  sub	$sp, $sp, 8
 			  sw	$ra, 0($sp)
-			  sub	$a0, $a1, $a3
-			  sub	$a1, $a0, $a2
+			  move	$t0, $a0		# save a0 from clobbering
+			  sub	$a0, $a3, $a1
+			  sub	$a1, $a2, $t0
 			  jal	atan2
 			  sw	$v0, 0xffff0080($0) # debug
 			  lw	$ra, 0($sp)
