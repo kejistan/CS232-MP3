@@ -179,7 +179,7 @@ atan2:
 			  div	$t2, $t1, $t0	# 300y / 1428x = index [0,63]
 			  # when quantizing into 64 different sections (approx 5 degrees each)
 			  # should produce accuracy to any square within radius 10.
-			  shl	$t2, $t2, 2		# multiply by four for alignment
+			  sll	$t2, $t2, 2		# multiply by four for alignment
 			  lw	$v0, atan($t2)
 			  j		atan2_return
 atan2_simple_cases:
