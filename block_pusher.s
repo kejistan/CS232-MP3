@@ -82,8 +82,8 @@ find_closest_block_return:
 #
 is_in_goal:
 			  li	$v0, 0			# initialize to false
-			  sub	$a0, $a0, 10
-			  bgtz	$a0, is_in_goal_false # x_coord > 10
+			  sub	$a0, $a0, 145
+			  bgtz	$a0, is_in_goal_false # x_coord > 145
 			  li	$v0, 1			# set to true
 is_in_goal_false:
 			  jr	$ra
